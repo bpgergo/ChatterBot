@@ -217,6 +217,11 @@ class UbuntuCorpusTrainer(Trainer):
         super(UbuntuCorpusTrainer, self).__init__(storage, **kwargs)
         import os
 
+        self.data_download_url = kwargs.get(
+            'ubuntu_corpus_data_download_url',
+            'http://cs.mcgill.ca/~jpineau/datasets/ubuntu-corpus-1.0/ubuntu_dialogs.tgz'
+        )
+
         self.data_directory = kwargs.get(
             'ubuntu_corpus_data_directory',
             './data/'
@@ -241,6 +246,7 @@ class UbuntuCorpusTrainer(Trainer):
 
         # Do not download the data if it already exists
         if os.path.exists(file_path):
+            self.logger.info('File is already extracted')
             return file_path
 
         with open(file_path, 'wb') as open_file:
@@ -268,7 +274,19 @@ class UbuntuCorpusTrainer(Trainer):
         """
         Extract a tar file at the specified file path.
         """
+        import os
         import tarfile
+
+        dir_name = os.path.split(file_path)[-1].split('.')[0]
+
+        extracted_file_directory = os.path.join(
+            self.data_directory,
+            dir_name
+        )
+
+        # Do not extract if the extracted directory already exists
+        if os.path.isdir(extracted_file_directory):
+            return False
 
         self.logger.info('Starting file extraction')
 
@@ -283,13 +301,27 @@ class UbuntuCorpusTrainer(Trainer):
 
         self.logger.info('File extraction complete')
 
-        return self.data_directory
+        return True
 
     def train(self):
         import glob
+        import csv
+        import os
 
-        # data_directory = self.extract('C:/Users/Gunther/GitHub/ChatterBot/examples/ubuntu_dialogs.tgz')
-        data_directory = 'C:/Users/Gunther/GitHub/ChatterBot/examples/ubuntu_dialogs/dialogs/'
+        # Download and extract the Ubuntu dialog corpus
+        corpus_download_path = self.download(self.data_download_url)
+        self.extract(corpus_download_path)
 
-        for file in glob.glob(data_directory):
+        extracted_corpus_path = os.path.join(
+            self.data_directory,
+            os.path.split(corpus_download_path)[-1].split('.')[0]
+        )
+
+        for file in glob.glob(extracted_corpus_path):
             print('file:', file)
+
+            with open(file, 'rb') as tsv:
+                reader = csv.reader(tsv, delimiter='\t')
+
+                for row in reader:
+                    print(row)
